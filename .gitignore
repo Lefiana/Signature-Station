@@ -1,0 +1,14 @@
+# Ignore signature output folder
+output/signatures/
+
+# Ignore Python virtual environment
+.venv/
+
+# Ignore compiled Python files
+__pycache__/
+*.pyc
+
+# Ignore IDE/Editor settings
+.qodo/
+.vscode/
+.idea/

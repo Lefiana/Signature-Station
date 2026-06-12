@@ -1,0 +1,28 @@
+from pathlib import Path
+
+CANVAS_WIDTH = 900
+CANVAS_HEIGHT = 300
+
+EXPORT_WIDTH = 200
+EXPORT_HEIGHT = 89
+
+EXPORT_DPI = 150
+
+PEN_WIDTH = 4
+
+PADDING = 8
+
+CROP_MARGIN = 5
+
+CURVE_GAMMA = 1.8
+
+WHITE_THRESHOLD = 200
+
+STROKE_THICKEN_KERNEL = 3
+
+OUTPUT_FOLDER = Path("output/signatures")
+
+OUTPUT_FOLDER.mkdir(
+    parents=True,
+    exist_ok=True
+)
