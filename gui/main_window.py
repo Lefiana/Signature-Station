@@ -46,22 +46,28 @@ class MainWindow(QMainWindow):
         buttons = QHBoxLayout()
         self.undo_btn = QPushButton("Undo")
         self.clear_btn = QPushButton("Clear")
-        self.save_btn = QPushButton("Save")
+        self.save_white_btn = QPushButton("Save (White)")
+        self.save_trans_btn = QPushButton("Save (Trans)")
         self.preview_btn = QPushButton("Preview")
 
         buttons.addWidget(self.undo_btn)
         buttons.addWidget(self.clear_btn)
-        buttons.addWidget(self.save_btn)
+        buttons.addWidget(self.save_white_btn)
+        buttons.addWidget(self.save_trans_btn)
         buttons.addWidget(self.preview_btn)
         layout.addLayout(buttons)
 
         # Connections
         self.undo_btn.clicked.connect(self.canvas.undo)
         self.clear_btn.clicked.connect(self.canvas.clear_canvas)
-        self.save_btn.clicked.connect(self.save_signature)
+        
+        # Connect save buttons with their respective transparent flags using lambda
+        self.save_white_btn.clicked.connect(lambda: self.save_signature(transparent=False))
+        self.save_trans_btn.clicked.connect(lambda: self.save_signature(transparent=True))
+        
         self.preview_btn.clicked.connect(self.preview_signature)
 
-        # Keyboard Shortcuts
+        # Keyboard Shortcuts (Defaulting Ctrl+S to transparent save)
         undo_action = QAction(self)
         undo_action.setShortcut(QKeySequence("Ctrl+Z"))
         undo_action.triggered.connect(self.canvas.undo)
@@ -69,7 +75,7 @@ class MainWindow(QMainWindow):
 
         save_action = QAction(self)
         save_action.setShortcut(QKeySequence("Ctrl+S"))
-        save_action.triggered.connect(self.save_signature)
+        save_action.triggered.connect(lambda: self.save_signature(transparent=True))
         self.addAction(save_action)
 
         clear_action = QAction(self)
@@ -77,7 +83,7 @@ class MainWindow(QMainWindow):
         clear_action.triggered.connect(self.canvas.clear_canvas)
         self.addAction(clear_action)
 
-    def save_signature(self):
+    def save_signature(self, transparent):
         # Validation
         valid, message = ValidationService.validate(
             self.name_input.text(),
@@ -88,20 +94,25 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Validation", message)
             return
 
-        filename = self.name_input.text().strip().lower().replace(" ", "_") + ".png"
+        # Add a suffix so you know which is which if both are saved
+        suffix = "_trans" if transparent else "_white"
+        filename = self.name_input.text().strip().lower().replace(" ", "_") + f"{suffix}.png"
         path = OUTPUT_FOLDER / filename
 
         # Optimized Conversion
         image = qimage_to_pil(self.canvas.get_pixmap().toImage())
 
-        processed = SignatureProcessor.process(image)
+        # Pass the transparent flag to the processor
+        processed = SignatureProcessor.process(image, transparent=transparent)
         processed.save(path, dpi=(EXPORT_DPI, EXPORT_DPI))
 
         QMessageBox.information(self, "Saved", f"Saved:\n{path}")
 
     def preview_signature(self):
         image = qimage_to_pil(self.canvas.get_pixmap().toImage())
-        processed = SignatureProcessor.process(image)
+        
+        # Force the preview to use a white background
+        processed = SignatureProcessor.process(image, transparent=False)
         
         dialog = PreviewDialog(processed, self)
         dialog.exec()

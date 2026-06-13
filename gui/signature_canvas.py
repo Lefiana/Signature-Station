@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QPoint, QLineF
+from PySide6.QtCore import Qt, QLineF
 from PySide6.QtGui import (
     QPainter,
     QColor,
