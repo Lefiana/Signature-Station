@@ -98,15 +98,18 @@ class MainWindow(QMainWindow):
         suffix = "_trans" if transparent else "_white"
         filename = self.name_input.text().strip().lower().replace(" ", "_") + f"{suffix}.png"
         path = OUTPUT_FOLDER / filename
-
-        # Optimized Conversion
+        
         image = qimage_to_pil(self.canvas.get_pixmap().toImage())
-
-        # Pass the transparent flag to the processor
         processed = SignatureProcessor.process(image, transparent=transparent)
-        processed.save(path, dpi=(EXPORT_DPI, EXPORT_DPI))
 
-        QMessageBox.information(self, "Saved", f"Saved:\n{path}")
+        # Wrap the save operation in a try/except block to catch network path issues safely
+        try:
+            processed.save(path, dpi=(EXPORT_DPI, EXPORT_DPI))
+            QMessageBox.information(self, "Saved", f"Successfully saved to:\n{path}")
+        except PermissionError:
+            QMessageBox.critical(self, "Save Error", "Permission denied. You do not have write access to the target destination folder.")
+        except OSError as e:
+            QMessageBox.critical(self, "Network Error", f"Could not reach the destination path.\n\nError details: {str(e)}")
 
     def preview_signature(self):
         image = qimage_to_pil(self.canvas.get_pixmap().toImage())
