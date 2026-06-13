@@ -3,7 +3,7 @@ from PySide6.QtGui import (
     QPainter,
     QColor,
     QPixmap,
-    QBrush,
+    QPen,
 )
 from PySide6.QtWidgets import QWidget
 
@@ -14,10 +14,10 @@ from config import (
 )
 
 # --- Calligraphy Brush Settings ---
-# Adjust these to match the "weight" of your desired signature
-BRUSH_WIDTH = 6
-BRUSH_HEIGHT = 2
-BRUSH_ANGLE = -30  # Angle in degrees for the tilted ellipse (negative for left tilt)
+# BRUSH_WIDTH acts as the "flat edge" of the nib. 
+# Increase to 8, 10, or 12 for a more pronounced thick/thin contrast.
+BRUSH_WIDTH = 8
+BRUSH_ANGLE = -30
 
 class SignatureCanvas(QWidget):
     def __init__(self):
@@ -58,11 +58,12 @@ class SignatureCanvas(QWidget):
             self.last_point = None
 
     def _draw_segment(self, p1, p2):
-        """Calculates the distance and fills the gap with stamps."""
+        """Calculates the distance and fills the gap with flat line stamps."""
         line = QLineF(p1, p2)
         dist = line.length()
         
-        # Stamps along the line
+        # Stamps along the line. 
+        # Increase the step multiplier (e.g., int(dist * 2)) if you draw incredibly fast and still see gaps.
         steps = max(1, int(dist))
         for i in range(steps + 1):
             t = i / steps
@@ -71,21 +72,23 @@ class SignatureCanvas(QWidget):
             self._stamp_at(point)
 
     def _stamp_at(self, point):
-        """Draws the tilted ellipse at a specific coordinate."""
+        """Draws a flat line segment (true calligraphy nib)."""
         painter = QPainter(self.canvas)
+        
+        # Comment this line out if you want the sharper, pixelated MS Paint look:
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.setBrush(QBrush(QColor("black")))
-        painter.setPen(Qt.NoPen)
+        
+        # The 1.5px pen dictates the absolute thinnest part of the stroke.
+        pen = QPen(QColor("black"), 1.5, Qt.SolidLine, Qt.RoundCap)
+        painter.setPen(pen)
 
         painter.save()
         painter.translate(point)
         painter.rotate(BRUSH_ANGLE)
-        painter.drawEllipse(
-            -BRUSH_WIDTH // 2, 
-            -BRUSH_HEIGHT // 2, 
-            BRUSH_WIDTH, 
-            BRUSH_HEIGHT
-        )
+        
+        # Stamp a flat line acting as the "edge" of the calligraphy nib
+        painter.drawLine(QLineF(-BRUSH_WIDTH / 2, 0, BRUSH_WIDTH / 2, 0))
+        
         painter.restore()
         painter.end()
         self.update()
