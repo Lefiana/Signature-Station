@@ -1,4 +1,5 @@
 from pathlib import Path
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -12,8 +13,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import (
     QKeySequence,
     QAction,
+    QFont,
 )
-from PIL import Image
 
 from gui.signature_canvas import SignatureCanvas
 from gui.preview_dialog import PreviewDialog
@@ -34,13 +35,27 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         central.setLayout(layout)
 
-        # Input and Canvas
-        layout.addWidget(QLabel("Employee Name"))
+        # Header Details
+        layout.addWidget(QLabel("Employee Name:"))
         self.name_input = QLineEdit()
         layout.addWidget(self.name_input)
         
+        # Subtle Instructional Label
+        self.instruction_label = QLabel("Please sign anywhere in the white area below.")
+        self.instruction_label.setAlignment(Qt.AlignCenter)
+        self.instruction_label.setStyleSheet("color: #666666; margin-top: 10px; margin-bottom: 5px;")
+        font = QFont()
+        font.setPointSize(11)
+        font.setItalic(True)
+        self.instruction_label.setFont(font)
+        layout.addWidget(self.instruction_label)
+
+        # The large expanding signature canvas
         self.canvas = SignatureCanvas()
         layout.addWidget(self.canvas)
+
+        # Canvas Signals
+        self.canvas.interaction_started.connect(self.handle_canvas_interaction)
 
         # Buttons Definition
         buttons = QHBoxLayout()
@@ -59,15 +74,13 @@ class MainWindow(QMainWindow):
 
         # Connections
         self.undo_btn.clicked.connect(self.canvas.undo)
-        self.clear_btn.clicked.connect(self.canvas.clear_canvas)
+        self.clear_btn.clicked.connect(self.reset_session)
         
-        # Connect save buttons with their respective transparent flags using lambda
         self.save_white_btn.clicked.connect(lambda: self.save_signature(transparent=False))
         self.save_trans_btn.clicked.connect(lambda: self.save_signature(transparent=True))
-        
         self.preview_btn.clicked.connect(self.preview_signature)
 
-        # Keyboard Shortcuts (Defaulting Ctrl+S to transparent save)
+        # Keyboard Shortcuts
         undo_action = QAction(self)
         undo_action.setShortcut(QKeySequence("Ctrl+Z"))
         undo_action.triggered.connect(self.canvas.undo)
@@ -80,41 +93,65 @@ class MainWindow(QMainWindow):
 
         clear_action = QAction(self)
         clear_action.setShortcut(QKeySequence("Ctrl+N"))
-        clear_action.triggered.connect(self.canvas.clear_canvas)
+        clear_action.triggered.connect(self.reset_session)
         self.addAction(clear_action)
 
+        # Start maximized so the expanding layout fills the monitor
+        self.showMaximized()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.canvas.focus_canvas()
+        self.canvas.center_cursor()
+
+    def enterEvent(self, event):
+        super().enterEvent(event)
+        local_pos = self.canvas.mapFromGlobal(self.cursor().pos())
+        if not self.canvas.rect().contains(local_pos) and not self.canvas.is_drawing():
+            self.canvas.center_cursor()
+            self.canvas.focus_canvas()
+
+    def handle_canvas_interaction(self):
+        """Hides or shows the instruction label based on whether strokes exist."""
+        if self.canvas.strokes or self.canvas.is_drawing():
+            self.instruction_label.hide()
+        else:
+            self.instruction_label.show()
+
+    def reset_session(self):
+        self.canvas.clear_canvas()
+        self.instruction_label.show()
+        self.canvas.focus_canvas()
+        self.canvas.center_cursor()
+
     def save_signature(self, transparent):
-        # Validation
-        valid, message = ValidationService.validate(
-            self.name_input.text(),
-            self.canvas.strokes
-        )
+        valid, message = ValidationService.validate(self.name_input.text(), self.canvas.strokes)
 
         if not valid:
             QMessageBox.warning(self, "Validation", message)
             return
 
-        # Add a suffix so you know which is which if both are saved
-        suffix = "_trans" if transparent else "_white"
+        suffix = ".sigg_trans" if transparent else ".sigg_white"
         filename = self.name_input.text().strip().lower().replace(" ", "_") + f"{suffix}.png"
         path = OUTPUT_FOLDER / filename
         
         image = qimage_to_pil(self.canvas.get_pixmap().toImage())
         processed = SignatureProcessor.process(image, transparent=transparent)
 
-        # Wrap the save operation in a try/except block to catch network path issues safely
         try:
             processed.save(path, dpi=(EXPORT_DPI, EXPORT_DPI))
             QMessageBox.information(self, "Saved", f"Successfully saved to:\n{path}")
+            
+            self.name_input.clear()
+            self.reset_session()
+
         except PermissionError:
-            QMessageBox.critical(self, "Save Error", "Permission denied. You do not have write access to the target destination folder.")
+            QMessageBox.critical(self, "Save Error", "Permission denied.")
         except OSError as e:
-            QMessageBox.critical(self, "Network Error", f"Could not reach the destination path.\n\nError details: {str(e)}")
+            QMessageBox.critical(self, "Network Error", f"Could not reach destination.\n{str(e)}")
 
     def preview_signature(self):
         image = qimage_to_pil(self.canvas.get_pixmap().toImage())
-        
-        # Force the preview to use a white background
         processed = SignatureProcessor.process(image, transparent=False)
         
         dialog = PreviewDialog(processed, self)
