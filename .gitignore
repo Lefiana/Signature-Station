@@ -12,3 +12,6 @@ __pycache__/
 .qodo/
 .vscode/
 .idea/
+
+.dist/
+.build/
