@@ -1,7 +1,8 @@
 import sys
+import resources_rc
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QIcon
 from gui.main_window import MainWindow
 
 def main():
@@ -11,6 +12,7 @@ def main():
     )
 
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(":/assets/favicon.ico"))
     
     window = MainWindow()
     window.show()
